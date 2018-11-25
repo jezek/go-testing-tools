@@ -10,32 +10,30 @@ import (
 	"time"
 )
 
-// Leaks monitor
-
 type goroutine struct {
 	id    int
 	name  string
 	stack []byte
 }
 
-type leaks struct {
+type Monitor struct {
 	name       string
 	goroutines map[int]goroutine
-	report     []*leaks
+	report     []*Monitor
 }
 
-func leaksMonitor(name string, monitors ...*leaks) *leaks {
-	return &leaks{
+func NewMonitor(name string, monitors ...*Monitor) *Monitor {
+	return &Monitor{
 		name,
-		leaks{}.collectGoroutines(),
+		Monitor{}.collectGoroutines(),
 		monitors,
 	}
 }
 
-// ispired by https://golang.org/src/runtime/debug/stack.go?s=587:606#L21
+// inspired by https://golang.org/src/runtime/debug/stack.go?s=587:606#L21
 // stack returns a formatted stack trace of all goroutines.
 // It calls runtime.Stack with a large enough buffer to capture the entire trace.
-func (_ leaks) stack() []byte {
+func (_ Monitor) stack() []byte {
 	buf := make([]byte, 1024)
 	for {
 		n := runtime.Stack(buf, true)
@@ -46,7 +44,7 @@ func (_ leaks) stack() []byte {
 	}
 }
 
-func (l leaks) collectGoroutines() map[int]goroutine {
+func (l Monitor) collectGoroutines() map[int]goroutine {
 	res := make(map[int]goroutine)
 	stacks := bytes.Split(l.stack(), []byte{'\n', '\n'})
 
@@ -80,7 +78,7 @@ func (l leaks) collectGoroutines() map[int]goroutine {
 	return res
 }
 
-func (l leaks) leakingGoroutines() []goroutine {
+func (l Monitor) leakingGoroutines() []goroutine {
 	goroutines := l.collectGoroutines()
 	res := []goroutine{}
 	for id, gr := range goroutines {
@@ -91,7 +89,7 @@ func (l leaks) leakingGoroutines() []goroutine {
 	}
 	return res
 }
-func (l leaks) checkTesting(t *testing.T) {
+func (l Monitor) CheckTesting(t *testing.T) {
 	if len(l.leakingGoroutines()) == 0 {
 		return
 	}
@@ -107,7 +105,7 @@ func (l leaks) checkTesting(t *testing.T) {
 		rl.ignoreLeak(grs...)
 	}
 }
-func (l *leaks) ignoreLeak(grs ...goroutine) {
+func (l *Monitor) ignoreLeak(grs ...goroutine) {
 	for _, gr := range grs {
 		l.goroutines[gr.id] = gr
 	}

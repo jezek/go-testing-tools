@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestLeaks(t *testing.T) {
-	lm := leaksMonitor("lm")
+func TestMonitor(t *testing.T) {
+	lm := NewMonitor("lm")
 	if lgrs := lm.leakingGoroutines(); len(lgrs) != 0 {
 		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 0", len(lgrs))
 	}
@@ -41,6 +41,6 @@ func TestLeaks(t *testing.T) {
 		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 0", len(lgrs))
 	}
 
-	lm.checkTesting(t)
+	lm.CheckTesting(t)
 	//TODO multiple leak monitors with report ignore tests
 }
