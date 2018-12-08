@@ -10,15 +10,15 @@ import (
 	"time"
 )
 
-type goroutine struct {
-	id    int
-	name  string
-	stack []byte
+type Goroutine struct {
+	ID    int
+	Name  string
+	Stack []byte
 }
 
 type Monitor struct {
 	name       string
-	goroutines map[int]goroutine
+	goroutines map[int]Goroutine
 	report     []*Monitor
 }
 
@@ -44,8 +44,8 @@ func (_ Monitor) stack() []byte {
 	}
 }
 
-func (l Monitor) collectGoroutines() map[int]goroutine {
-	res := make(map[int]goroutine)
+func (l Monitor) collectGoroutines() map[int]Goroutine {
+	res := make(map[int]Goroutine)
 	stacks := bytes.Split(l.stack(), []byte{'\n', '\n'})
 
 	regexpId := regexp.MustCompile(`^\s*goroutine\s*(\d+)`)
@@ -73,14 +73,14 @@ func (l Monitor) collectGoroutines() map[int]goroutine {
 			continue
 		}
 
-		res[id] = goroutine{id, name, st}
+		res[id] = Goroutine{id, name, st}
 	}
 	return res
 }
 
-func (l Monitor) leakingGoroutines() []goroutine {
+func (l Monitor) LeakingGoroutines() []Goroutine {
 	goroutines := l.collectGoroutines()
-	res := []goroutine{}
+	res := []Goroutine{}
 	for id, gr := range goroutines {
 		if _, ok := l.goroutines[id]; ok {
 			continue
@@ -90,23 +90,23 @@ func (l Monitor) leakingGoroutines() []goroutine {
 	return res
 }
 func (l Monitor) CheckTesting(t *testing.T) {
-	if len(l.leakingGoroutines()) == 0 {
+	if len(l.LeakingGoroutines()) == 0 {
 		return
 	}
 	leakTimeout := 10 * time.Millisecond
 	time.Sleep(leakTimeout)
 	//t.Logf("possible goroutine leakage, waiting %v", leakTimeout)
-	grs := l.leakingGoroutines()
+	grs := l.LeakingGoroutines()
 	for _, gr := range grs {
-		t.Errorf("%s: %s is leaking", l.name, gr.name)
+		t.Errorf("%s: %s is leaking", l.name, gr.Name)
 		//t.Errorf("%s: %s is leaking\n%v", l.name, gr.name, string(gr.stack))
 	}
 	for _, rl := range l.report {
 		rl.ignoreLeak(grs...)
 	}
 }
-func (l *Monitor) ignoreLeak(grs ...goroutine) {
+func (l *Monitor) ignoreLeak(grs ...Goroutine) {
 	for _, gr := range grs {
-		l.goroutines[gr.id] = gr
+		l.goroutines[gr.ID] = gr
 	}
 }
