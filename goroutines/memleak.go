@@ -1,4 +1,4 @@
-package memleak
+package goroutines
 
 import (
 	"bytes"
