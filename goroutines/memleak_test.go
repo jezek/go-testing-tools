@@ -6,9 +6,13 @@ import (
 )
 
 func TestMonitor(t *testing.T) {
-	lm := NewMonitor("lm")
-	if lgrs := lm.LeakingGoroutines(); len(lgrs) != 0 {
-		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 0", len(lgrs))
+	step := 0
+	lm0 := NewMonitor()
+	if lgrs, want := lm0.LeakingGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d. len(lm0.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm0.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LostGoroutines) = %d, want %d", step, len(lgrs), want)
 	}
 
 	done := make(chan struct{})
@@ -19,9 +23,21 @@ func TestMonitor(t *testing.T) {
 		<-done
 		wg.Done()
 	}()
+	step++
 
-	if lgrs := lm.LeakingGoroutines(); len(lgrs) != 1 {
-		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 1", len(lgrs))
+	if lgrs, want := lm0.LeakingGoroutines(), 1; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm0.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LostGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+
+	lm1 := NewMonitor()
+	if lgrs, want := lm1.LeakingGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm1.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LostGoroutines) = %d, want %d", step, len(lgrs), want)
 	}
 
 	wg.Add(1)
@@ -29,18 +45,40 @@ func TestMonitor(t *testing.T) {
 		<-done
 		wg.Done()
 	}()
+	step++
 
-	if lgrs := lm.LeakingGoroutines(); len(lgrs) != 2 {
-		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 2", len(lgrs))
+	if lgrs, want := lm0.LeakingGoroutines(), 2; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm0.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LostGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+
+	if lgrs, want := lm1.LeakingGoroutines(), 1; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm1.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LostGoroutines) = %d, want %d", step, len(lgrs), want)
 	}
 
 	close(done)
 	wg.Wait()
+	step++
 
-	if lgrs := lm.LeakingGoroutines(); len(lgrs) != 0 {
-		t.Errorf("leakingGoroutines returned %d leaking goroutines, want 0", len(lgrs))
+	if lgrs, want := lm0.LeakingGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm0.LostGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm0.LostGoroutines) = %d, want %d", step, len(lgrs), want)
 	}
 
-	lm.CheckTesting(t)
+	if lgrs, want := lm1.LeakingGoroutines(), 0; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LeakingGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+	if lgrs, want := lm1.LostGoroutines(), 1; len(lgrs) != want {
+		t.Errorf("step %d, len(lm1.LostGoroutines) = %d, want %d", step, len(lgrs), want)
+	}
+
+	lm0.TestingErrorLeaking(t, "lm0")
 	//TODO multiple leak monitors with report ignore tests
 }

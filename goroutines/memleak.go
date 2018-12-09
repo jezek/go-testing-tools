@@ -17,14 +17,12 @@ type Goroutine struct {
 }
 
 type Monitor struct {
-	name       string
 	goroutines map[int]Goroutine
 	report     []*Monitor
 }
 
-func NewMonitor(name string, monitors ...*Monitor) *Monitor {
+func NewMonitor(monitors ...*Monitor) *Monitor {
 	return &Monitor{
-		name,
 		Monitor{}.collectGoroutines(),
 		monitors,
 	}
@@ -78,18 +76,31 @@ func (l Monitor) collectGoroutines() map[int]Goroutine {
 	return res
 }
 
-func (l Monitor) LeakingGoroutines() []Goroutine {
+func (l Monitor) LeakingGoroutines() map[int]Goroutine {
 	goroutines := l.collectGoroutines()
-	res := []Goroutine{}
+	res := map[int]Goroutine{}
 	for id, gr := range goroutines {
 		if _, ok := l.goroutines[id]; ok {
 			continue
 		}
-		res = append(res, gr)
+		res[id] = gr
 	}
 	return res
 }
-func (l Monitor) CheckTesting(t *testing.T) {
+
+func (l Monitor) LostGoroutines() map[int]Goroutine {
+	goroutines := l.collectGoroutines()
+	res := map[int]Goroutine{}
+	for id, gr := range l.goroutines {
+		if _, ok := goroutines[id]; ok {
+			continue
+		}
+		res[id] = gr
+	}
+	return res
+}
+
+func (l Monitor) TestingErrorLeaking(t *testing.T, desc string) {
 	if len(l.LeakingGoroutines()) == 0 {
 		return
 	}
@@ -98,11 +109,14 @@ func (l Monitor) CheckTesting(t *testing.T) {
 	//t.Logf("possible goroutine leakage, waiting %v", leakTimeout)
 	grs := l.LeakingGoroutines()
 	for _, gr := range grs {
-		t.Errorf("%s: %s is leaking", l.name, gr.Name)
-		//t.Errorf("%s: %s is leaking\n%v", l.name, gr.name, string(gr.stack))
+		t.Errorf("%s: %s is leaking", desc, gr.Name)
 	}
 	for _, rl := range l.report {
-		rl.ignoreLeak(grs...)
+		grsa := make([]Goroutine, 0, len(grs))
+		for _, gr := range grs {
+			grsa = append(grsa, gr)
+		}
+		rl.ignoreLeak(grsa...)
 	}
 }
 func (l *Monitor) ignoreLeak(grs ...Goroutine) {
